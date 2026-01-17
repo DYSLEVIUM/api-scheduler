@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'api-scheduler'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'api-scheduler'
+    static_configs:
+      - targets: ['api:8000']
+    metrics_path: '/health/metrics'
+    scrape_interval: 10s
+
+  - job_name: 'temporal'
+    static_configs:
+      - targets: ['temporal:7233']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'fluentd'
+    static_configs:
+      - targets: ['fluentd:24231']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'postgres-temporal'
+    static_configs:
+      - targets: ['postgres-exporter-temporal:9187']
+    scrape_interval: 15s
+
+  - job_name: 'postgres-app'
+    static_configs:
+      - targets: ['postgres-exporter-app:9187']
+    scrape_interval: 15s

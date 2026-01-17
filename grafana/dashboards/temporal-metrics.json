@@ -1,0 +1,119 @@
+{
+  "title": "Temporal Metrics",
+  "tags": [
+    "temporal",
+    "workflow"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "type": "stat",
+      "title": "Workflow Executions",
+      "targets": [
+        {
+          "expr": "sum(temporal_workflow_executions)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "type": "stat",
+      "title": "Active Workflows",
+      "targets": [
+        {
+          "expr": "sum(temporal_workflow_active)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "type": "graph",
+      "title": "Workflow Execution Rate",
+      "targets": [
+        {
+          "expr": "rate(temporal_workflow_executions[5m])",
+          "legendFormat": "{{workflow_type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "type": "graph",
+      "title": "Workflow Failures",
+      "targets": [
+        {
+          "expr": "rate(temporal_workflow_failures[5m])",
+          "legendFormat": "{{workflow_type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "type": "graph",
+      "title": "Activity Executions",
+      "targets": [
+        {
+          "expr": "rate(temporal_activity_executions[5m])",
+          "legendFormat": "{{activity_type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "type": "graph",
+      "title": "Temporal Server Health",
+      "targets": [
+        {
+          "expr": "up{job=\"temporal\"}",
+          "legendFormat": "Temporal Server",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

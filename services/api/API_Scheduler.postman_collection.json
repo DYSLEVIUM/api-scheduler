@@ -1,0 +1,536 @@
+{
+	"info": {
+		"_postman_id": "api-scheduler-collection",
+		"name": "API Scheduler",
+		"description": "Postman collection for API Scheduler service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Targets",
+			"item": [
+				{
+					"name": "Create Target",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"target_id\", response.data.id);",
+									"        console.log(\"Target ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Target\",\n    \"url\": \"https://api.example.com/v1/endpoint\",\n    \"method\": \"GET\",\n    \"headers\": {\n        \"Authorization\": \"Bearer token123\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": null\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/targets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets"
+							]
+						},
+						"description": "Create a new target"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Targets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/targets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets"
+							]
+						},
+						"description": "Get all targets"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Target by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/targets/{{target_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets",
+								"{{target_id}}"
+							]
+						},
+						"description": "Get a specific target by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Target",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Target Name\",\n    \"url\": \"https://api.example.com/v2/endpoint\",\n    \"method\": \"POST\",\n    \"headers\": {\n        \"Authorization\": \"Bearer newtoken456\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": {\n        \"key\": \"value\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/targets/{{target_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets",
+								"{{target_id}}"
+							]
+						},
+						"description": "Update an existing target"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Target",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/targets/{{target_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets",
+								"{{target_id}}"
+							]
+						},
+						"description": "Delete a target"
+					},
+					"response": []
+				}
+			],
+			"description": "Target management endpoints"
+		},
+		{
+			"name": "Schedules",
+			"item": [
+				{
+					"name": "Create Interval Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"schedule_id\", response.data.id);",
+									"        pm.collectionVariables.set(\"schedule_type\", \"interval\");",
+									"        console.log(\"Schedule ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules"
+							]
+						},
+						"description": "Create a new interval schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Window Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"window_schedule_id\", response.data.id);",
+									"        pm.collectionVariables.set(\"schedule_type\", \"window\");",
+									"        console.log(\"Window Schedule ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 30,\n    \"duration_seconds\": 300\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules"
+							]
+						},
+						"description": "Create a new window schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Schedules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/schedules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules"
+							]
+						},
+						"description": "Get all schedules"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Schedule by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}"
+							]
+						},
+						"description": "Get a specific schedule by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Interval Schedule",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 120\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}"
+							]
+						},
+						"description": "Update an interval schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Window Schedule",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 45,\n    \"duration_seconds\": 600\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules/{{window_schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{window_schedule_id}}"
+							]
+						},
+						"description": "Update a window schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Schedule",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}/pause",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}",
+								"pause"
+							]
+						},
+						"description": "Pause a schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Resume Schedule",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}/resume",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}",
+								"resume"
+							]
+						},
+						"description": "Resume a paused schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Schedule",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}"
+							]
+						},
+						"description": "Delete a schedule"
+					},
+					"response": []
+				}
+			],
+			"description": "Schedule management endpoints"
+		},
+		{
+			"name": "Jobs",
+			"item": [
+				{
+					"name": "Get All Jobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/jobs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"jobs"
+							]
+						},
+						"description": "Get all jobs"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Jobs by Schedule ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/jobs?schedule_id={{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"jobs"
+							],
+							"query": [
+								{
+									"key": "schedule_id",
+									"value": "{{schedule_id}}",
+									"description": "Filter jobs by schedule ID"
+								}
+							]
+						},
+						"description": "Get all jobs for a specific schedule"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Job by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/jobs/{{job_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"jobs",
+								"{{job_id}}"
+							]
+						},
+						"description": "Get a specific job by ID"
+					},
+					"response": []
+				}
+			],
+			"description": "Job management endpoints"
+		},
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check API health status"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "target_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "schedule_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "window_schedule_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "schedule_type",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "job_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

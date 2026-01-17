@@ -1,0 +1,254 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: api-scheduler-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    networks:
+      - api-scheduler-network
+
+  postgres-app:
+    image: postgres:15-alpine
+    container_name: api-scheduler-postgres-app
+    environment:
+      POSTGRES_USER: api_scheduler
+      POSTGRES_PASSWORD: api_scheduler
+      POSTGRES_DB: api_scheduler
+    ports:
+      - "5433:5432"
+    volumes:
+      # - postgres-app-data:/var/lib/postgresql/data
+      - ./services/api/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api_scheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - api-scheduler-network
+
+  postgres-exporter-temporal:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: api-scheduler-postgres-exporter-temporal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: "postgresql://temporal:temporal@postgres:5432/temporal?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - api-scheduler-network
+
+  postgres-exporter-app:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: api-scheduler-postgres-exporter-app
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: "postgresql://api_scheduler:api_scheduler@postgres-app:5432/api_scheduler?sslmode=disable"
+    ports:
+      - "9188:9187"
+    networks:
+      - api-scheduler-network
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: api-scheduler-temporal-admin-tools
+    restart: on-failure:6
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgres
+      - SQL_PASSWORD=temporal
+    networks:
+      - api-scheduler-network
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/sh"]
+    command: /scripts/setup-postgres.sh
+
+  temporal:
+    image: temporalio/server:1.29.1
+    container_name: api-scheduler-temporal
+    depends_on:
+      temporal-admin-tools:
+        condition: service_completed_successfully
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgres
+      - BIND_ON_IP=0.0.0.0
+    ports:
+      - "7233:7233"
+      - "7234:7234"
+      - "7235:7235"
+    volumes:
+      - temporal-data:/var/lib/temporal
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 60
+    networks:
+      - api-scheduler-network
+
+  temporal-create-namespace:
+    image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
+    container_name: api-scheduler-temporal-create-namespace
+    restart: on-failure:5
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DEFAULT_NAMESPACE=default
+    networks:
+      - api-scheduler-network
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/sh"]
+    command: /scripts/create-namespace.sh
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    container_name: api-scheduler-temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8080:8080"
+    networks:
+      - api-scheduler-network
+
+  fluentd:
+    build:
+      context: ./fluentd
+      dockerfile: Dockerfile
+    container_name: api-scheduler-fluentd
+    volumes:
+      - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - fluentd-logs:/var/log/fluentd
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "9880:9880"
+      - "24231:24231"
+    networks:
+      - api-scheduler-network
+
+  fluentd-ui:
+    build:
+      context: ./fluentd-ui
+      dockerfile: Dockerfile
+    container_name: api-scheduler-fluentd-ui
+    depends_on:
+      - fluentd
+    environment:
+      - FLUENTD_HOST=fluentd
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - api-scheduler-network
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: api-scheduler-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - api-scheduler-network
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: api-scheduler-grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - api-scheduler-network
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: api-scheduler-api
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      fluentd:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+asyncpg://api_scheduler:api_scheduler@postgres-app:5432/api_scheduler
+      TEMPORAL_HOST: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: api-scheduler-queue
+      FLUENTD_HOST: fluentd
+      FLUENTD_PORT: 24224
+      ENABLE_FLUENTD: "true"
+      LOG_LEVEL: INFO
+      DEV: "0"
+      DEBUG: "0"
+      OTEL_SERVICE_NAME: api-scheduler
+    ports:
+      - "8000:8000"
+    networks:
+      - api-scheduler-network
+
+volumes:
+  postgres-data:
+  # postgres-app-data:
+  temporal-data:
+  fluentd-logs:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  api-scheduler-network:
+    driver: bridge
