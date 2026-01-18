@@ -15,7 +15,7 @@ podman compose up --build
 |---------|-----|-------------|
 | **API** | http://localhost:8000 | - |
 | **Web UI** | http://localhost:3001 | - |
-| **Grafana** | http://localhost:3002 | admin/admin |
+| **Grafana** | http://localhost:3000 | admin/admin |
 | **Prometheus** | http://localhost:9090 | - |
 | **Temporal UI** | http://localhost:8080 | - |
 | **API Docs** | http://localhost:8000/docs | - |
@@ -56,7 +56,6 @@ open http://localhost:3000
 - **PostgreSQL**: Database performance
 - **System Metrics**: CPU, memory, I/O for all services ⭐ NEW
 - **Logs**: Real-time structured logs
-- **Auth**: Username: admin, Password: admin
 
 ## Development
 
