@@ -7,9 +7,6 @@ A distributed API scheduling system built with FastAPI, Temporal, and PostgreSQL
 ```bash
 # Start all services
 podman compose up --build
-
-# Check monitoring health
-./scripts/check-monitoring.sh
 ```
 
 ## Access Points
@@ -48,22 +45,10 @@ podman compose up --build
 - ✅ HTTP request/response logs
 - ✅ Container logs
 
-### 📚 Documentation
-- **[QUICK_LOGGING_REFERENCE.md](./QUICK_LOGGING_REFERENCE.md)** - Log queries quick reference ⚡
-- **[SYSTEM_METRICS_ADDED.md](./SYSTEM_METRICS_ADDED.md)** - System metrics guide ⚡
-- **[COMPREHENSIVE_LOGGING.md](./COMPREHENSIVE_LOGGING.md)** - Complete logging guide
-- **[MONITORING_LOGS.md](./MONITORING_LOGS.md)** - Monitoring architecture
-
 ### 🎯 Quick Access
 ```bash
 # View dashboards in Grafana
 open http://localhost:3000
-
-# Check monitoring health
-./scripts/check-monitoring.sh
-
-# Test logging
-./test-comprehensive-logging.sh
 ```
 
 ### 📈 Grafana Dashboards
@@ -71,27 +56,9 @@ open http://localhost:3000
 - **PostgreSQL**: Database performance
 - **System Metrics**: CPU, memory, I/O for all services ⭐ NEW
 - **Logs**: Real-time structured logs
+- **Auth**: Username: admin, Password: admin
 
 ## Development
-
-### Database Migrations
-
-```bash
-# Check current version
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/api_scheduler uv run alembic current
-
-# Create migration
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/api_scheduler uv run alembic revision --autogenerate -m "Description"
-
-# Apply migrations
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/api_scheduler uv run alembic upgrade head
-
-# Rollback one migration
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/api_scheduler uv run alembic downgrade -1
-
-# View history
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/api_scheduler uv run alembic history
-```
 
 ### Running Tests
 
@@ -124,6 +91,4 @@ podman compose logs -f api
 # Rebuild and restart
 podman compose up --build -d
 
-# Check monitoring stack
-./scripts/check-monitoring.sh
 ```
