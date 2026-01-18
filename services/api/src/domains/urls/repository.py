@@ -2,7 +2,7 @@ from uuid import UUID
 
 from db.database import get_session
 from db.models.url import URL as URLModel
-from sqlmodel import select
+from sqlmodel import delete, select
 
 
 class URLRepository:
@@ -30,9 +30,9 @@ class URLRepository:
     async def delete_url(self, url_id: UUID):
         async with get_session() as session:
             try:
-                url = await session.get(URLModel, url_id)
-                if url:
-                    await session.delete(url)
-                    await session.commit()
+                await session.execute(
+                    delete(URLModel).where(URLModel.id == url_id)
+                )
+                await session.commit()
             except Exception as e:
                 raise Exception(f"Error deleting url: {str(e)}")

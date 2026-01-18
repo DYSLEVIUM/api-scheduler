@@ -2,6 +2,7 @@ from typing import List
 from uuid import UUID
 
 from core.decorators import log
+from domains.jobs.repository import JobRepository
 from models.schedule import Schedule
 from temporal.client import get_temporal_client, start_schedule_workflow
 
@@ -55,6 +56,9 @@ class ScheduleService:
                     await terminate_schedule_workflow(schedule_id, client)
                 except Exception:
                     pass
+
+            job_repo = JobRepository()
+            await job_repo.delete_jobs_by_schedule_id(schedule_id)
 
             db_schedule = await self.repository.delete_schedule(schedule_id)
             return db_schedule.to_pydantic_model()

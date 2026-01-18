@@ -38,7 +38,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Test Target\",\n    \"url\": \"https://api.example.com/v1/endpoint\",\n    \"method\": \"GET\",\n    \"headers\": {\n        \"Authorization\": \"Bearer token123\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": null\n}"
+							"raw": "{\n    \"name\": \"Test Target\",\n    \"url\": \"https://api.example.com/v1/endpoint\",\n    \"method\": \"GET\",\n    \"headers\": {\n        \"Authorization\": \"Bearer token123\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": null,\n    \"timeout_seconds\": 30,\n    \"retry_count\": 3,\n    \"retry_delay_seconds\": 2,\n    \"follow_redirects\": true\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/targets",
@@ -49,7 +49,7 @@
 								"targets"
 							]
 						},
-						"description": "Create a new target"
+						"description": "Create a new target with timeout and retry configuration"
 					},
 					"response": []
 				},
@@ -102,7 +102,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Updated Target Name\",\n    \"url\": \"https://api.example.com/v2/endpoint\",\n    \"method\": \"POST\",\n    \"headers\": {\n        \"Authorization\": \"Bearer newtoken456\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": {\n        \"key\": \"value\"\n    }\n}"
+							"raw": "{\n    \"name\": \"Updated Target Name\",\n    \"url\": \"https://api.example.com/v2/endpoint\",\n    \"method\": \"POST\",\n    \"headers\": {\n        \"Authorization\": \"Bearer newtoken456\",\n        \"Content-Type\": \"application/json\"\n    },\n    \"body\": {\n        \"key\": \"value\"\n    },\n    \"timeout_seconds\": 60,\n    \"retry_count\": 5,\n    \"retry_delay_seconds\": 3,\n    \"follow_redirects\": false\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/targets/{{target_id}}",
@@ -134,6 +134,94 @@
 							]
 						},
 						"description": "Delete a target"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Target - No Redirect Follow",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"redirect_target_id\", response.data.id);",
+									"        console.log(\"Redirect Target ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Google No Redirect\",\n    \"url\": \"https://google.com\",\n    \"method\": \"GET\",\n    \"headers\": {},\n    \"body\": null,\n    \"timeout_seconds\": 10,\n    \"retry_count\": 0,\n    \"retry_delay_seconds\": 1,\n    \"follow_redirects\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/targets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets"
+							]
+						},
+						"description": "Create a target that does NOT follow redirects - useful for testing redirect responses"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Target - Follow Redirects",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"redirect_target_id\", response.data.id);",
+									"        console.log(\"Redirect Target ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Google With Redirect\",\n    \"url\": \"https://google.com\",\n    \"method\": \"GET\",\n    \"headers\": {},\n    \"body\": null,\n    \"timeout_seconds\": 10,\n    \"retry_count\": 0,\n    \"retry_delay_seconds\": 1,\n    \"follow_redirects\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/targets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"targets"
+							]
+						},
+						"description": "Create a target that follows redirects - logs the full redirect chain"
 					},
 					"response": []
 				}
@@ -173,7 +261,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 60\n}"
+							"raw": "{\n    \"name\": \"Hourly Health Check\",\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 60\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/schedules",
@@ -184,7 +272,7 @@
 								"schedules"
 							]
 						},
-						"description": "Create a new interval schedule"
+						"description": "Create a new interval schedule (runs every N seconds) - requires name, target_id, and interval_seconds"
 					},
 					"response": []
 				},
@@ -218,7 +306,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 30,\n    \"duration_seconds\": 300\n}"
+							"raw": "{\n    \"name\": \"5-Minute Burst Test\",\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 30,\n    \"duration_seconds\": 300\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/schedules",
@@ -229,7 +317,7 @@
 								"schedules"
 							]
 						},
-						"description": "Create a new window schedule"
+						"description": "Create a new window schedule (runs for M seconds) - requires name, target_id, interval_seconds, and duration_seconds"
 					},
 					"response": []
 				},
@@ -247,7 +335,7 @@
 								"schedules"
 							]
 						},
-						"description": "Get all schedules"
+						"description": "Get all schedules - returns schedule objects with id, name, target_id, interval_seconds, etc."
 					},
 					"response": []
 				},
@@ -282,7 +370,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 120\n}"
+							"raw": "{\n    \"name\": \"Updated Health Check\",\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 120\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/schedules/{{schedule_id}}",
@@ -310,7 +398,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 45,\n    \"duration_seconds\": 600\n}"
+							"raw": "{\n    \"name\": \"Updated Burst Test\",\n    \"target_id\": \"{{target_id}}\",\n    \"interval_seconds\": 45,\n    \"duration_seconds\": 600\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/schedules/{{window_schedule_id}}",
@@ -389,72 +477,130 @@
 			"description": "Schedule management endpoints"
 		},
 		{
-			"name": "Jobs",
+			"name": "Runs",
 			"item": [
 				{
-					"name": "Get All Jobs",
+					"name": "Get All Runs",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/jobs",
+							"raw": "{{base_url}}/runs",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"jobs"
+								"runs"
 							]
 						},
-						"description": "Get all jobs"
+						"description": "Get all runs - sorted by run_number (descending), includes schedule name in response"
 					},
 					"response": []
 				},
 				{
-					"name": "Get Jobs by Schedule ID",
+					"name": "Get Runs by Schedule ID",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/jobs?schedule_id={{schedule_id}}",
+							"raw": "{{base_url}}/runs?schedule_id={{schedule_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"jobs"
+								"runs"
 							],
 							"query": [
 								{
 									"key": "schedule_id",
 									"value": "{{schedule_id}}",
-									"description": "Filter jobs by schedule ID"
+									"description": "Filter runs by schedule ID"
 								}
 							]
 						},
-						"description": "Get all jobs for a specific schedule"
+						"description": "Get all runs for a specific schedule - sorted by run_number (descending), includes schedule name"
 					},
 					"response": []
 				},
 				{
-					"name": "Get Job by ID",
+					"name": "Get Runs with Filters",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/jobs/{{job_id}}",
+							"raw": "{{base_url}}/runs?schedule_id={{schedule_id}}&status=success&start_time=2024-01-01T00:00:00Z&end_time=2024-12-31T23:59:59Z",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"jobs",
-								"{{job_id}}"
+								"runs"
+							],
+							"query": [
+								{
+									"key": "schedule_id",
+									"value": "{{schedule_id}}",
+									"description": "Filter by schedule ID",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "success",
+									"description": "Filter by status: success, timeout, dns_error, connection_error, http_4xx, http_5xx, error"
+								},
+								{
+									"key": "start_time",
+									"value": "2024-01-01T00:00:00Z",
+									"description": "Filter by start time (ISO format)"
+								},
+								{
+									"key": "end_time",
+									"value": "2024-12-31T23:59:59Z",
+									"description": "Filter by end time (ISO format)"
+								}
 							]
 						},
-						"description": "Get a specific job by ID"
+						"description": "Get runs with filtering options (status, time range) - sorted by run_number (descending), includes schedule name"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Run by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data) {",
+									"        pm.collectionVariables.set(\"run_id\", response.data.id);",
+									"        console.log(\"Run ID saved:\", response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/runs/{{run_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"runs",
+								"{{run_id}}"
+							]
+						},
+						"description": "Get a specific run by ID with full details including attempts, redirect history, and schedule name"
 					},
 					"response": []
 				}
 			],
-			"description": "Job management endpoints"
+			"description": "View execution history for schedules"
 		},
 		{
 			"name": "Health",
@@ -476,9 +622,28 @@
 						"description": "Check API health status"
 					},
 					"response": []
+				},
+				{
+					"name": "Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health/metrics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health",
+								"metrics"
+							]
+						},
+						"description": "Get Prometheus metrics"
+					},
+					"response": []
 				}
 			],
-			"description": "Health check endpoints"
+			"description": "Health check and metrics endpoints"
 		}
 	],
 	"event": [
@@ -528,7 +693,12 @@
 			"type": "string"
 		},
 		{
-			"key": "job_id",
+			"key": "run_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "redirect_target_id",
 			"value": "",
 			"type": "string"
 		}

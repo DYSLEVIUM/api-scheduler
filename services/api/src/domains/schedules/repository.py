@@ -1,13 +1,17 @@
+import asyncio
 from uuid import UUID
 
 from core.decorators import log
+from core.logging import get_logger
 from db.database import get_session
 from db.models.schedule import IntervalSchedule as IntervalScheduleModel
 from db.models.schedule import Schedule as ScheduleModel
 from db.models.schedule import WindowSchedule as WindowScheduleModel
 from models.schedule import Schedule as SchedulePydantic
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
+from sqlmodel import delete, select
+
+logger = get_logger()
 
 
 class ScheduleRepository:
@@ -19,109 +23,125 @@ class ScheduleRepository:
                 session.add(db_schedule)
                 await session.commit()
                 await session.refresh(db_schedule)
+                logger.info("schedule_created", schedule_id=str(db_schedule.id), target_id=str(db_schedule.target_id))
                 return db_schedule
             except SQLAlchemyError as e:
+                logger.error("create_schedule_db_error", error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
+                logger.error("create_schedule_error", error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(str(e))
+
+    async def _get_interval_schedule(self, schedule_id: UUID):
+        async with get_session() as session:
+            result = await session.execute(
+                select(IntervalScheduleModel).where(
+                    IntervalScheduleModel.id == schedule_id
+                )
+            )
+            return result.scalar_one_or_none()
+
+    async def _get_window_schedule(self, schedule_id: UUID):
+        async with get_session() as session:
+            result = await session.execute(
+                select(WindowScheduleModel).where(
+                    WindowScheduleModel.id == schedule_id
+                )
+            )
+            return result.scalar_one_or_none()
 
     @log(operation_name="db.get_schedule_by_id", log_args=False)
     async def get_schedule_by_id(self, schedule_id: UUID):
+        try:
+            interval_schedule, window_schedule = await asyncio.gather(
+                self._get_interval_schedule(schedule_id),
+                self._get_window_schedule(schedule_id)
+            )
+
+            if interval_schedule:
+                return interval_schedule
+
+            if window_schedule:
+                return window_schedule
+
+            logger.warning("schedule_not_found", schedule_id=str(schedule_id))
+            raise Exception(f"Schedule with id {schedule_id} not found")
+        except SQLAlchemyError as e:
+            logger.error("get_schedule_db_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
+            raise Exception(f"Database error occurred: {str(e)}")
+        except Exception as e:
+            if "not found" not in str(e).lower():
+                logger.error("get_schedule_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
+            raise
+
+    async def _get_all_interval_schedules(self):
         async with get_session() as session:
-            try:
-                interval_result = await session.execute(
-                    select(IntervalScheduleModel).where(
-                        IntervalScheduleModel.id == schedule_id
-                    )
-                )
-                interval_schedule = interval_result.scalar_one_or_none()
+            result = await session.execute(select(IntervalScheduleModel))
+            return result.scalars().all()
 
-                if interval_schedule:
-                    return interval_schedule
-
-                window_result = await session.execute(
-                    select(WindowScheduleModel).where(
-                        WindowScheduleModel.id == schedule_id
-                    )
-                )
-                window_schedule = window_result.scalar_one_or_none()
-
-                if window_schedule:
-                    return window_schedule
-
-                raise Exception(f"Schedule with id {schedule_id} not found")
-            except SQLAlchemyError as e:
-                raise Exception(f"Database error occurred: {str(e)}")
-            except Exception as e:
-                if "not found" in str(e).lower():
-                    raise
+    async def _get_all_window_schedules(self):
+        async with get_session() as session:
+            result = await session.execute(select(WindowScheduleModel))
+            return result.scalars().all()
 
     @log(operation_name="db.get_all_schedules")
     async def get_all_schedules(self):
+        try:
+            interval_schedules, window_schedules = await asyncio.gather(
+                self._get_all_interval_schedules(),
+                self._get_all_window_schedules()
+            )
+            return list(interval_schedules) + list(window_schedules)
+        except SQLAlchemyError as e:
+            raise Exception(f"Database error occurred: {str(e)}")
+        except Exception as e:
+            raise Exception(str(e))
+
+    async def _get_interval_schedules_by_target(self, target_id: UUID):
         async with get_session() as session:
-            try:
-                interval_result = await session.execute(
-                    select(IntervalScheduleModel)
+            result = await session.execute(
+                select(IntervalScheduleModel).where(
+                    IntervalScheduleModel.target_id == target_id
                 )
-                interval_schedules = interval_result.scalars().all()
+            )
+            return result.scalars().all()
 
-                window_result = await session.execute(
-                    select(WindowScheduleModel)
+    async def _get_window_schedules_by_target(self, target_id: UUID):
+        async with get_session() as session:
+            result = await session.execute(
+                select(WindowScheduleModel).where(
+                    WindowScheduleModel.target_id == target_id
                 )
-                window_schedules = window_result.scalars().all()
-
-                return list(interval_schedules) + list(window_schedules)
-            except SQLAlchemyError as e:
-                raise Exception(f"Database error occurred: {str(e)}")
-            except Exception as e:
-                raise Exception(str(e))
+            )
+            return result.scalars().all()
 
     @log(operation_name="db.get_schedules_by_target_id", log_args=False)
     async def get_schedules_by_target_id(self, target_id: UUID):
-        async with get_session() as session:
-            try:
-                interval_result = await session.execute(
-                    select(IntervalScheduleModel).where(
-                        IntervalScheduleModel.target_id == target_id
-                    )
-                )
-                interval_schedules = interval_result.scalars().all()
-
-                window_result = await session.execute(
-                    select(WindowScheduleModel).where(
-                        WindowScheduleModel.target_id == target_id
-                    )
-                )
-                window_schedules = window_result.scalars().all()
-
-                return list(interval_schedules) + list(window_schedules)
-            except SQLAlchemyError as e:
-                raise Exception(f"Database error occurred: {str(e)}")
-            except Exception as e:
-                raise Exception(str(e))
+        try:
+            interval_schedules, window_schedules = await asyncio.gather(
+                self._get_interval_schedules_by_target(target_id),
+                self._get_window_schedules_by_target(target_id)
+            )
+            return list(interval_schedules) + list(window_schedules)
+        except SQLAlchemyError as e:
+            raise Exception(f"Database error occurred: {str(e)}")
+        except Exception as e:
+            raise Exception(str(e))
 
     @log(operation_name="db.delete_schedules_by_target_id", log_args=False)
     async def delete_schedules_by_target_id(self, target_id: UUID):
         async with get_session() as session:
             try:
-                interval_result = await session.execute(
-                    select(IntervalScheduleModel).where(
+                await session.execute(
+                    delete(IntervalScheduleModel).where(
                         IntervalScheduleModel.target_id == target_id
                     )
                 )
-                interval_schedules = interval_result.scalars().all()
-
-                window_result = await session.execute(
-                    select(WindowScheduleModel).where(
+                await session.execute(
+                    delete(WindowScheduleModel).where(
                         WindowScheduleModel.target_id == target_id
                     )
                 )
-                window_schedules = window_result.scalars().all()
-
-                for schedule in interval_schedules:
-                    await session.delete(schedule)
-                for schedule in window_schedules:
-                    await session.delete(schedule)
                 await session.commit()
             except SQLAlchemyError as e:
                 raise Exception(f"Database error occurred: {str(e)}")

@@ -54,6 +54,9 @@ class Job(UUIDMixin, TimestampMixin, table=True):
     response_headers: Any = Field(default=None, sa_column=Column(JSON))
     response_body: Any = Field(default=None, sa_column=Column(JSON))
     error_message: str | None = Field(default=None)
+    redirected: bool = Field(default=False, nullable=False)
+    redirect_count: int = Field(default=0, nullable=False)
+    redirect_history: Any = Field(default=None, sa_column=Column(JSON))
 
     def to_pydantic_model(self):
         from models.job import Job as JobPydantic

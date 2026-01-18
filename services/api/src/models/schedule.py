@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 class Schedule(BaseModel, ABC):
     id: UUID | None = None
+    name: str | None = None
     target_id: UUID | None = None
     interval_seconds: int | None = None
     paused: bool | None = None

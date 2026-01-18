@@ -1,35 +1,118 @@
 {
-  "title": "PostgreSQL Metrics",
-  "tags": [
-    "postgresql",
-    "database"
-  ],
-  "timezone": "browser",
-  "schemaVersion": 38,
-  "version": 1,
-  "refresh": "15s",
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "id": 1,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 8,
         "x": 0,
         "y": 0
       },
-      "type": "stat",
-      "title": "Temporal DB Status",
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "up{job=\"postgres-temporal\"}",
           "refId": "A"
         }
       ],
+      "title": "Temporal DB Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -44,366 +127,268 @@
             ]
           }
         }
-      }
-    },
-    {
-      "id": 2,
+      },
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 8,
         "x": 8,
         "y": 0
       },
-      "type": "stat",
-      "title": "App DB Status",
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "up{job=\"postgres-app\"}",
           "refId": "A"
         }
       ],
+      "title": "App DB Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
                 "color": "green",
-                "value": 1
+                "value": null
               }
             ]
-          }
+          },
+          "unit": "short"
         }
-      }
-    },
-    {
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
       "id": 3,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 0
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "type": "stat",
-      "title": "Temporal DB Connections",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
-          "expr": "pg_stat_database_numbackends{job=\"postgres-temporal\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "pg_stat_database_numbackends{job=\"postgres-temporal\",datname=\"temporal\"}",
+          "legendFormat": "Temporal DB",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "pg_stat_database_numbackends{job=\"postgres-temporal\",datname=\"temporal_visibility\"}",
+          "legendFormat": "Temporal Visibility DB",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "pg_stat_database_numbackends{job=\"postgres-app\",datname=\"api_scheduler\"}",
+          "legendFormat": "App DB",
+          "refId": "C"
         }
-      ]
+      ],
+      "title": "Database Connections",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
       "id": 4,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 8
+      "options": {
+        "legend": {
+          "calcs": ["mean"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "type": "stat",
-      "title": "App DB Connections",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
-          "expr": "pg_stat_database_numbackends{job=\"postgres-app\"}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 8,
-        "y": 8
-      },
-      "type": "stat",
-      "title": "Temporal DB Size",
-      "targets": [
-        {
-          "expr": "pg_database_size_bytes{job=\"postgres-temporal\",datname=\"temporal\"}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "decimals": 2
-        }
-      }
-    },
-    {
-      "id": 6,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 16
-      },
-      "type": "stat",
-      "title": "App DB Size",
-      "targets": [
-        {
-          "expr": "pg_database_size_bytes{job=\"postgres-app\",datname=\"api_scheduler\"}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "decimals": 2
-        }
-      }
-    },
-    {
-      "id": 7,
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 24
-      },
-      "type": "graph",
-      "title": "Database Connections Over Time",
-      "targets": [
-        {
-          "expr": "pg_stat_database_numbackends{job=\"postgres-temporal\"}",
-          "legendFormat": "Temporal DB",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-temporal\",datname=\"temporal\"}[5m])",
+          "legendFormat": "Temporal Commits",
           "refId": "A"
         },
         {
-          "expr": "pg_stat_database_numbackends{job=\"postgres-app\"}",
-          "legendFormat": "App DB",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 32
-      },
-      "type": "graph",
-      "title": "Transactions (Temporal DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Commits",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Rollbacks",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 32
-      },
-      "type": "graph",
-      "title": "Transactions (App DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Commits",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Rollbacks",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 10,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
-      "type": "graph",
-      "title": "Tuples (Temporal DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_tup_inserted{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Inserted",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_updated{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Updated",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-temporal\",datname=\"temporal_visibility\"}[5m])",
+          "legendFormat": "Temporal Visibility Commits",
           "refId": "B"
         },
         {
-          "expr": "rate(pg_stat_database_tup_deleted{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Deleted",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-app\",datname=\"api_scheduler\"}[5m])",
+          "legendFormat": "App Commits",
           "refId": "C"
         }
-      ]
-    },
-    {
-      "id": 11,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
-      "type": "graph",
-      "title": "Tuples (App DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_tup_inserted{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Inserted",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_updated{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Updated",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(pg_stat_database_tup_deleted{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Deleted",
-          "refId": "C"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 48
-      },
-      "type": "graph",
-      "title": "Cache Hit Ratio (Temporal DB)",
-      "targets": [
-        {
-          "expr": "sum(rate(pg_stat_database_blks_hit{job=\"postgres-temporal\"}[5m])) / (sum(rate(pg_stat_database_blks_hit{job=\"postgres-temporal\"}[5m])) + sum(rate(pg_stat_database_blks_read{job=\"postgres-temporal\"}[5m]))) * 100",
-          "legendFormat": "Hit Ratio %",
-          "refId": "A"
-        }
       ],
-      "yaxes": [
-        {
-          "format": "percent",
-          "max": 100,
-          "min": 0,
-          "label": "Percentage"
-        }
-      ]
-    },
-    {
-      "id": 13,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 48
-      },
-      "type": "graph",
-      "title": "Cache Hit Ratio (App DB)",
-      "targets": [
-        {
-          "expr": "sum(rate(pg_stat_database_blks_hit{job=\"postgres-app\"}[5m])) / (sum(rate(pg_stat_database_blks_hit{job=\"postgres-app\"}[5m])) + sum(rate(pg_stat_database_blks_read{job=\"postgres-app\"}[5m]))) * 100",
-          "legendFormat": "Hit Ratio %",
-          "refId": "A"
-        }
-      ],
-      "yaxes": [
-        {
-          "format": "percent",
-          "max": 100,
-          "min": 0,
-          "label": "Percentage"
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 56
-      },
-      "type": "graph",
-      "title": "Database Size Over Time",
-      "targets": [
-        {
-          "expr": "pg_database_size_bytes{job=\"postgres-temporal\",datname=\"temporal\"}",
-          "legendFormat": "Temporal DB",
-          "refId": "A"
-        },
-        {
-          "expr": "pg_database_size_bytes{job=\"postgres-app\",datname=\"api_scheduler\"}",
-          "legendFormat": "App DB",
-          "refId": "B"
-        }
-      ],
-      "yaxes": [
-        {
-          "format": "bytes",
-          "label": "Size"
-        }
-      ]
-    },
-    {
-      "id": 15,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 64
-      },
-      "type": "graph",
-      "title": "Deadlocks (Temporal DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_deadlocks{job=\"postgres-temporal\"}[5m])",
-          "legendFormat": "Deadlocks/sec",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 16,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 64
-      },
-      "type": "graph",
-      "title": "Deadlocks (App DB)",
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_deadlocks{job=\"postgres-app\"}[5m])",
-          "legendFormat": "Deadlocks/sec",
-          "refId": "A"
-        }
-      ]
+      "title": "Transaction Rate",
+      "type": "timeseries"
     }
-  ]
+  ],
+  "refresh": "15s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["postgresql", "database"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "PostgreSQL Metrics",
+  "uid": "postgresql-metrics",
+  "version": 0,
+  "weekStart": ""
 }

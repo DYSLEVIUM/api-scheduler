@@ -1,10 +1,10 @@
 import asyncio
-import logging
 from contextlib import asynccontextmanager
 
+from core.logging import get_logger
 from temporal.client import create_worker
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 
 class TemporalWorkerService:
@@ -14,15 +14,25 @@ class TemporalWorkerService:
 
     async def start(self):
         if self.worker is not None:
-            logger.warning("Worker already started")
+            logger.warning("temporal_worker_already_started")
             return
 
         try:
+            logger.info("temporal_worker_starting")
             self.worker = await create_worker()
             self.worker_task = asyncio.create_task(self.worker.run())
-            logger.info("Temporal worker started")
+            logger.info(
+                "temporal_worker_started",
+                worker_id=id(self.worker),
+                task_id=id(self.worker_task),
+            )
         except Exception as e:
-            logger.error(f"Failed to start Temporal worker: {e}")
+            logger.error(
+                "temporal_worker_start_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise
 
     async def stop(self):
@@ -30,14 +40,20 @@ class TemporalWorkerService:
             return
 
         try:
+            logger.info("temporal_worker_stopping")
             await self.worker.shutdown()
             if self.worker_task:
                 await self.worker_task
             self.worker = None
             self.worker_task = None
-            logger.info("Temporal worker stopped")
+            logger.info("temporal_worker_stopped")
         except Exception as e:
-            logger.error(f"Error stopping Temporal worker: {e}")
+            logger.error(
+                "temporal_worker_stop_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
 
 
 temporal_worker_service = TemporalWorkerService()

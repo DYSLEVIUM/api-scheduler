@@ -8,6 +8,7 @@ from db.mixins.uuid import UUIDMixin
 
 
 class Schedule(UUIDMixin, TimestampMixin, ABC):
+    name: str = Field(nullable=False)
     interval_seconds: int = Field(nullable=False)
     target_id: UUID = Field(foreign_key="targets.id",
                             nullable=False, index=True)

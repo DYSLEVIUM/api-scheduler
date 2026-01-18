@@ -28,7 +28,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      # - postgres-app-data:/var/lib/postgresql/data
+      - postgres-app-data:/var/lib/postgresql/data
       - ./services/api/sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U api_scheduler"]
@@ -98,10 +98,12 @@ services:
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=postgres
       - BIND_ON_IP=0.0.0.0
+      - PROMETHEUS_ENDPOINT=0.0.0.0:9090
     ports:
       - "7233:7233"
       - "7234:7234"
       - "7235:7235"
+      - "7236:9090"
     volumes:
       - temporal-data:/var/lib/temporal
     healthcheck:
@@ -112,6 +114,9 @@ services:
       retries: 60
     networks:
       - api-scheduler-network
+    labels:
+      logging: "promtail"
+      service: "temporal"
 
   temporal-create-namespace:
     image: temporalio/admin-tools:1.29.1-tctl-1.18.4-cli-1.5.0
@@ -143,38 +148,9 @@ services:
       - "8080:8080"
     networks:
       - api-scheduler-network
-
-  fluentd:
-    build:
-      context: ./fluentd
-      dockerfile: Dockerfile
-    container_name: api-scheduler-fluentd
-    volumes:
-      - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
-      - fluentd-logs:/var/log/fluentd
-    ports:
-      - "24224:24224"
-      - "24224:24224/udp"
-      - "9880:9880"
-      - "24231:24231"
-    networks:
-      - api-scheduler-network
-
-  fluentd-ui:
-    build:
-      context: ./fluentd-ui
-      dockerfile: Dockerfile
-    container_name: api-scheduler-fluentd-ui
-    depends_on:
-      - fluentd
-    environment:
-      - FLUENTD_HOST=fluentd
-    ports:
-      - "8081:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - api-scheduler-network
+    labels:
+      logging: "promtail"
+      service: "temporal-ui"
 
   prometheus:
     image: prom/prometheus:v2.48.0
@@ -194,11 +170,39 @@ services:
     networks:
       - api-scheduler-network
 
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: api-scheduler-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - api-scheduler-network
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: api-scheduler-promtail
+    privileged: true
+    user: root
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /run/podman/podman.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - api-scheduler-network
+
   grafana:
     image: grafana/grafana:10.2.0
     container_name: api-scheduler-grafana
     depends_on:
       - prometheus
+      - loki
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -222,17 +226,15 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
-      fluentd:
+      loki:
         condition: service_started
     environment:
       DATABASE_URL: postgresql+asyncpg://api_scheduler:api_scheduler@postgres-app:5432/api_scheduler
       TEMPORAL_HOST: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: api-scheduler-queue
-      FLUENTD_HOST: fluentd
-      FLUENTD_PORT: 24224
-      ENABLE_FLUENTD: "true"
       LOG_LEVEL: INFO
+      LOKI_URL: http://loki:3100
       DEV: "0"
       DEBUG: "0"
       OTEL_SERVICE_NAME: api-scheduler
@@ -240,14 +242,37 @@ services:
       - "8000:8000"
     networks:
       - api-scheduler-network
+    labels:
+      logging: "promtail"
+      service: "api"
+
+  web:
+    build:
+      context: ./app/web
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: api-scheduler-web
+    depends_on:
+      - api
+    environment:
+      PORT: "3000"
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "3001:3000"
+    networks:
+      - api-scheduler-network
+    labels:
+      logging: "promtail"
+      service: "web"
 
 volumes:
   postgres-data:
-  # postgres-app-data:
+  postgres-app-data:
   temporal-data:
-  fluentd-logs:
   prometheus-data:
   grafana-data:
+  loki-data:
 
 networks:
   api-scheduler-network:

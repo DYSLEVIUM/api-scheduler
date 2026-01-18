@@ -21,6 +21,10 @@ class Target(BaseModel):
     method: HTTPMethods
     headers: dict[str, str]
     body: dict[str, str] | None = None
+    timeout_seconds: int = Field(default=30, ge=1, le=300)
+    retry_count: int = Field(default=0, ge=0, le=10)
+    retry_delay_seconds: int = Field(default=1, ge=0, le=60)
+    follow_redirects: bool = Field(default=True)
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

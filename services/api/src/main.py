@@ -1,55 +1,26 @@
 import logging
 from contextlib import asynccontextmanager
 
+import structlog
 import uvicorn
 from core.config import settings
 from core.logging import setup_logging
 from core.otel import setup_opentelemetry
 from domains.health.router import router as health_router
-from domains.jobs.router import router as jobs_router
+from domains.runs.router import router as runs_router
 from domains.schedules.router import router as schedules_router
-from domains.schedules.service import ScheduleService
 from domains.targets.router import router as targets_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from middleware.logging import LoggingMiddleware
 from middleware.observability import ObservabilityMiddleware
-from temporal.client import get_temporal_client, start_schedule_workflow
 from temporal.worker_service import temporal_worker_lifespan
-
-logger = logging.getLogger(__name__)
-
-
-async def resume_existing_schedules():
-    schedule_service = ScheduleService()
-    db_schedules = await schedule_service.repository.get_all_schedules()
-
-    client = await get_temporal_client()
-
-    try:
-        for db_schedule in db_schedules:
-            if db_schedule.paused or db_schedule.temporal_workflow_id:
-                continue
-
-            try:
-                workflow_id = await start_schedule_workflow(
-                    db_schedule.id, db_schedule.get_workflow_type(), client
-                )
-                await schedule_service.repository.update_workflow_id(
-                    db_schedule.id, workflow_id
-                )
-            except Exception:
-                pass
-    finally:
-        pass
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging(
-        fluentd_host=settings.fluentd_host,
-        fluentd_port=settings.fluentd_port,
+    logger = setup_logging(
         log_level=settings.log_level,
-        enable_fluentd=settings.enable_fluentd,
     )
 
     setup_opentelemetry(
@@ -57,9 +28,16 @@ async def lifespan(app: FastAPI):
         otel_endpoint=settings.otel_endpoint,
     )
 
+    logger.info(
+        "application_starting",
+        service=settings.otel_service_name,
+        environment="development" if settings.dev else "production",
+    )
+
     async with temporal_worker_lifespan():
-        await resume_existing_schedules()
+        logger.info("application_ready")
         yield
+        logger.info("application_shutting_down")
 
 
 def create_app():
@@ -73,7 +51,7 @@ def create_app():
         title="API Scheduler",
         description="API Scheduler",
         version="0.1.0",
-        redirect_slashes=False,
+        redirect_slashes=True,
         lifespan=lifespan,
     )
 
@@ -82,24 +60,23 @@ def create_app():
     app.include_router(targets_router)
     app.include_router(health_router)
     app.include_router(schedules_router)
-    app.include_router(jobs_router)
+    app.include_router(runs_router)
 
     return app
 
 
 app = create_app()
 
-origins = [
-    "*",
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
+app.add_middleware(LoggingMiddleware)
 app.add_middleware(ObservabilityMiddleware)
 
 

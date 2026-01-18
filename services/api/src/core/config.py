@@ -18,9 +18,7 @@ class Settings(BaseSettings):
     temporal_task_queue: str = "api-scheduler-queue"
 
     log_level: str = "INFO"
-    fluentd_host: str = "localhost"
-    fluentd_port: int = 24224
-    enable_fluentd: bool = True
+    loki_url: str | None = None
 
     otel_endpoint: str | None = None
     otel_service_name: str = "api-scheduler"

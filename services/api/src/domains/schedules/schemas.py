@@ -10,6 +10,7 @@ from models.schedule import IntervalSchedule, WindowSchedule
 
 
 class ScheduleRequestBase(BaseModel):
+    name: str = Field(..., description="Name of the schedule")
     target_id: UUID
     interval_seconds: int = Field(
         ..., gt=0, description="Interval in seconds between runs"
@@ -40,6 +41,7 @@ ScheduleRequest = Union[IntervalScheduleRequest, WindowScheduleRequest]
 
 class IntervalScheduleResponse(BaseModel):
     id: UUID
+    name: str
     target_id: UUID
     interval_seconds: int
     paused: bool
@@ -49,6 +51,7 @@ class IntervalScheduleResponse(BaseModel):
 
 class WindowScheduleResponse(BaseModel):
     id: UUID
+    name: str
     target_id: UUID
     interval_seconds: int
     duration_seconds: int

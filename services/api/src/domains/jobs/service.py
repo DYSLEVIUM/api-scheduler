@@ -22,16 +22,26 @@ class JobService:
         except Exception as e:
             raise Exception(str(e))
 
-    async def get_jobs_by_schedule_id(self, schedule_id: UUID):
+    async def get_jobs_by_schedule_id(
+        self,
+        schedule_id: UUID,
+        status_filter=None,
+        start_time=None,
+        end_time=None,
+    ):
         try:
-            db_jobs = await self.repository.get_jobs_by_schedule_id(schedule_id)
+            db_jobs = await self.repository.get_jobs_by_schedule_id(
+                schedule_id, status_filter, start_time, end_time
+            )
             return [db_job.to_pydantic_model() for db_job in db_jobs]
         except Exception as e:
             raise Exception(str(e))
 
-    async def get_all_jobs(self):
+    async def get_all_jobs(self, status_filter=None, start_time=None, end_time=None):
         try:
-            db_jobs = await self.repository.get_all_jobs()
+            db_jobs = await self.repository.get_all_jobs(
+                status_filter, start_time, end_time
+            )
             return [db_job.to_pydantic_model() for db_job in db_jobs]
         except Exception as e:
             raise Exception(str(e))

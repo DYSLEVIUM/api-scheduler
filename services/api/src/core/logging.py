@@ -1,83 +1,64 @@
 import logging
+import socket
 import sys
-from typing import Any
 
 import structlog
-from fluent import sender
-
-
-class FluentdLogger:
-    def __init__(self, host: str = "localhost", port: int = 24224, tag: str = "api-scheduler"):
-        self.logger = sender.FluentSender(tag, host=host, port=port)
-
-    def emit(self, level: str, message: str, **kwargs: Any) -> None:
-        try:
-            self.logger.emit(level, {
-                "message": message,
-                "level": level,
-                **kwargs
-            })
-        except Exception:
-            pass
-
-    def info(self, message: str, **kwargs: Any) -> None:
-        self.emit("info", message, **kwargs)
-
-    def warning(self, message: str, **kwargs: Any) -> None:
-        self.emit("warning", message, **kwargs)
-
-    def error(self, message: str, **kwargs: Any) -> None:
-        self.emit("error", message, **kwargs)
-
-    def debug(self, message: str, **kwargs: Any) -> None:
-        self.emit("debug", message, **kwargs)
-
-    def close(self) -> None:
-        if self.logger:
-            self.logger.close()
-
-
-class FluentdProcessor:
-    def __init__(self, fluentd_logger: FluentdLogger):
-        self.fluentd_logger = fluentd_logger
-
-    def __call__(self, logger, method_name, event_dict):
-        level = event_dict.get("level", "info").lower()
-        message = event_dict.pop("event", "")
-
-        try:
-            self.fluentd_logger.emit(level, message, **event_dict)
-        except Exception:
-            pass
-
-        return event_dict
 
 
 def setup_logging(
-    fluentd_host: str = "localhost",
-    fluentd_port: int = 24224,
     log_level: str = "INFO",
-    enable_fluentd: bool = True,
 ) -> structlog.BoundLogger:
+    from core.config import settings
+
+    handlers = []
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(getattr(logging, log_level.upper()))
+    handlers.append(console_handler)
+
+    if settings.loki_url:
+        try:
+            from logging_loki import LokiHandler
+
+            loki_handler = LokiHandler(
+                url=f"{settings.loki_url}/loki/api/v1/push",
+                tags={
+                    "application": settings.otel_service_name,
+                    "environment": "development" if settings.dev else "production",
+                    "host": socket.gethostname(),
+                },
+                version="1",
+            )
+            loki_handler.setLevel(getattr(logging, log_level.upper()))
+            handlers.append(loki_handler)
+        except Exception as e:
+            print(f"Warning: Failed to initialize Loki handler: {e}")
+
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout,
         level=getattr(logging, log_level.upper()),
+        handlers=handlers,
+        force=True,
     )
 
-    processors = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-    ]
-
-    if enable_fluentd:
-        fluentd_logger = FluentdLogger(host=fluentd_host, port=fluentd_port)
-        processors.append(FluentdProcessor(fluentd_logger))
-        processors.append(structlog.processors.JSONRenderer())
+    if settings.dev:
+        processors = [
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.dev.set_exc_info,
+            structlog.dev.ConsoleRenderer(),
+        ]
     else:
-        processors.append(structlog.dev.ConsoleRenderer())
+        processors = [
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.JSONRenderer(),
+        ]
 
     structlog.configure(
         processors=processors,
@@ -85,11 +66,26 @@ def setup_logging(
             getattr(logging, log_level.upper())
         ),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=False,
     )
 
-    return structlog.get_logger()
+    logger = structlog.get_logger()
+    if settings.loki_url:
+        logger.info(
+            "logging_initialized",
+            log_level=log_level,
+            loki_enabled=True,
+            loki_url=settings.loki_url,
+        )
+    else:
+        logger.info(
+            "logging_initialized",
+            log_level=log_level,
+            loki_enabled=False,
+        )
+
+    return logger
 
 
 def get_logger() -> structlog.BoundLogger:

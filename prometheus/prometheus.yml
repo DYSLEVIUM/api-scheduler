@@ -17,13 +17,7 @@ scrape_configs:
 
   - job_name: 'temporal'
     static_configs:
-      - targets: ['temporal:7233']
-    metrics_path: '/metrics'
-    scrape_interval: 15s
-
-  - job_name: 'fluentd'
-    static_configs:
-      - targets: ['fluentd:24231']
+      - targets: ['temporal:9090']
     metrics_path: '/metrics'
     scrape_interval: 15s
 

@@ -16,6 +16,10 @@ class Target(UUIDMixin, TimestampMixin, table=True):
     method: HTTPMethods = Field(nullable=False)
     headers: Any = Field(default=None, sa_column=Column(JSON))
     body: Any = Field(default=None, sa_column=Column(JSON))
+    timeout_seconds: int = Field(default=30, nullable=False)
+    retry_count: int = Field(default=0, nullable=False)
+    retry_delay_seconds: int = Field(default=1, nullable=False)
+    follow_redirects: bool = Field(default=True, nullable=False)
 
     def to_pydantic_model(self, url_string: str):
         from urllib.parse import urlparse

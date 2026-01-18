@@ -1,14 +1,19 @@
-FROM ghcr.io/astral-sh/uv:python3.14-alpine AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm AS builder
 
 WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.14-alpine
+FROM python:3.14-slim
 
 WORKDIR /app
 

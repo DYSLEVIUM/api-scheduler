@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import List
 from uuid import UUID
 
 from core.decorators import log
-from fastapi import APIRouter, HTTPException, status
-
-from domains.schedules.schemas import ScheduleRequest, ScheduleResponse
+from domains.runs.schemas import RunResponse
+from domains.runs.service import RunService
+from domains.schedules.schemas import (IntervalScheduleRequest,
+                                       ScheduleResponse, WindowScheduleRequest)
 from domains.schedules.service import ScheduleService
+from enums.job_status import JobStatus
+from fastapi import APIRouter, Body, HTTPException, Query, status
 from models.response import HTTPResponse
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
@@ -22,8 +26,13 @@ service = ScheduleService()
     status_code=status.HTTP_201_CREATED,
 )
 @log(operation_name="api.POST /schedules", log_args=False)
-async def create_schedule(schedule: ScheduleRequest):
+async def create_schedule(schedule_data: dict = Body(...)):
     try:
+        if "duration_seconds" in schedule_data:
+            schedule = WindowScheduleRequest(**schedule_data)
+        else:
+            schedule = IntervalScheduleRequest(**schedule_data)
+
         schedule_model = schedule.to_model()
         schedule_pydantic = await service.create_schedule(schedule_model)
         schedule_response = schedule_pydantic.to_response()
@@ -163,8 +172,13 @@ async def resume_schedule(id: UUID):
     status_code=status.HTTP_200_OK,
 )
 @log(operation_name="api.PUT /schedules/{id}", log_args=False)
-async def update_schedule(id: UUID, schedule: ScheduleRequest):
+async def update_schedule(id: UUID, schedule_data: dict = Body(...)):
     try:
+        if "duration_seconds" in schedule_data:
+            schedule = WindowScheduleRequest(**schedule_data)
+        else:
+            schedule = IntervalScheduleRequest(**schedule_data)
+
         schedule_model = schedule.to_model()
         schedule_pydantic = await service.update_schedule(id, schedule_model)
         schedule_response = schedule_pydantic.to_response()
@@ -210,6 +224,62 @@ async def delete_schedule(id: UUID):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(e)
             )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/{id}/runs",
+    response_model=HTTPResponse[List],
+    response_model_exclude_none=True,
+    tags=["get schedule runs"],
+    status_code=status.HTTP_200_OK,
+)
+@log(operation_name="api.GET /schedules/{id}/runs", log_args=False)
+async def get_schedule_runs(
+    id: UUID,
+    status_filter: str | None = Query(None, alias="status"),
+    start_time: str | None = Query(None),
+    end_time: str | None = Query(None),
+):
+    try:
+        run_service = RunService()
+
+        status_enum = None
+        if status_filter:
+            try:
+                status_enum = JobStatus(status_filter.lower())
+            except ValueError:
+                pass
+
+        start_dt = None
+        end_dt = None
+        if start_time:
+            try:
+                start_dt = datetime.fromisoformat(
+                    start_time.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        if end_time:
+            try:
+                end_dt = datetime.fromisoformat(
+                    end_time.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
+        run_pydantics = await run_service.get_runs_by_schedule_id(
+            id, status_enum, start_dt, end_dt
+        )
+        run_responses = [RunResponse(**r.model_dump()) for r in run_pydantics]
+        return HTTPResponse(
+            success=True,
+            status_code=status.HTTP_200_OK,
+            message="Runs retrieved successfully",
+            data=run_responses,
+        )
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

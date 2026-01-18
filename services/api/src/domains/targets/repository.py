@@ -1,23 +1,23 @@
-import logging
+import asyncio
 from uuid import UUID
 
 from db.database import get_session
 from db.models.target import Target as TargetModel
 from db.models.url import URL as URLModel
 from domains.schedules.repository import ScheduleRepository
-from domains.urls.repository import URLRepository
 from models.target import Target as TargetPydantic
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
+from core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 
 class TargetRepository:
-    url_repository = URLRepository()
     schedule_repository = ScheduleRepository()
 
     async def get_target_by_id(self, target_id: UUID):
+        logger.info("get_target_by_id_started", target_id=str(target_id))
         async with get_session() as session:
             try:
                 result = await session.execute(
@@ -27,51 +27,74 @@ class TargetRepository:
                 )
                 row = result.first()
                 if not row:
+                    logger.warning("target_not_found", target_id=str(target_id))
                     raise Exception(f"Target with id {target_id} not found")
+                logger.info("get_target_by_id_success", target_id=str(target_id))
                 return row
             except SQLAlchemyError as e:
+                logger.error(
+                    "get_target_by_id_db_error",
+                    target_id=str(target_id),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
-                if "not found" in str(e).lower():
-                    raise
-                raise Exception(str(e))
+                if "not found" not in str(e).lower():
+                    logger.error(
+                        "get_target_by_id_error",
+                        target_id=str(target_id),
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        exc_info=True
+                    )
+                raise
 
     async def create_target(self, target: TargetPydantic):
+        logger.info("create_target_started", url=target.url, method=target.method)
         async with get_session() as session:
             try:
                 parsed_url = target.get_url_parse_result()
                 db_url = URLModel(**parsed_url._asdict())
-                logger.debug(f"Creating URL: {db_url.model_dump()}")
+                logger.debug("creating_url", scheme=db_url.scheme, netloc=db_url.netloc, path=db_url.path)
                 session.add(db_url)
                 await session.flush()
-                logger.debug(f"URL flushed with id: {db_url.id}")
+                logger.debug("url_created", url_id=str(db_url.id))
 
                 db_target = target.to_db_model()
                 db_target.url_id = db_url.id
-                logger.debug(
-                    f"Creating target: {db_target.model_dump(exclude={'id', 'created_at', 'updated_at'})}")
 
                 if db_target.headers is None:
-                    logger.warning("headers is None, setting to empty dict")
+                    logger.warning("target_headers_none", setting_empty_dict=True)
                     db_target.headers = {}
 
                 session.add(db_target)
                 await session.commit()
-                logger.debug("Target committed successfully")
                 await session.refresh(db_target)
                 await session.refresh(db_url)
 
+                logger.info("create_target_success", target_id=str(db_target.id), url_id=str(db_url.id))
                 return db_target, db_url
             except SQLAlchemyError as e:
                 logger.error(
-                    f"SQLAlchemy error in create_target: {type(e).__name__}: {str(e)}", exc_info=True)
+                    "create_target_db_error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
                 logger.error(
-                    f"Error in create_target: {type(e).__name__}: {str(e)}", exc_info=True)
+                    "create_target_error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(str(e))
 
     async def get_all_targets(self) -> list:
+        logger.info("get_all_targets_started")
         async with get_session() as session:
             try:
                 result = await session.execute(
@@ -79,13 +102,28 @@ class TargetRepository:
                         URLModel, TargetModel.url_id == URLModel.id
                     )
                 )
-                return result.all()
+                targets = result.all()
+                logger.info("get_all_targets_success", count=len(targets))
+                return targets
             except SQLAlchemyError as e:
+                logger.error(
+                    "get_all_targets_db_error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
+                logger.error(
+                    "get_all_targets_error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(str(e))
 
     async def update_target(self, target_id: UUID, target: TargetPydantic):
+        logger.info("update_target_started", target_id=str(target_id), url=target.url)
         async with get_session() as session:
             try:
                 result = await session.execute(
@@ -95,15 +133,16 @@ class TargetRepository:
                 )
                 row = result.first()
                 if not row:
+                    logger.warning("update_target_not_found", target_id=str(target_id))
                     raise Exception(f"Target with id {target_id} not found")
 
                 existing_target, existing_url = row
-                old_url_id = existing_target.url_id
 
                 parsed_url = target.get_url_parse_result()
                 db_url = URLModel(**parsed_url._asdict())
                 session.add(db_url)
                 await session.flush()
+                logger.debug("update_target_new_url_created", url_id=str(db_url.id))
 
                 db_target = target.to_db_model()
                 for key, value in db_target.model_dump(exclude={"id", "url_id", "created_at", "updated_at"}).items():
@@ -116,47 +155,77 @@ class TargetRepository:
                 await session.refresh(existing_target)
                 await session.refresh(db_url)
 
-                if old_url_id:
-                    old_url = await session.get(URLModel, old_url_id)
-                    if old_url:
-                        await session.delete(old_url)
-                        await session.commit()
-
+                logger.info("update_target_success", target_id=str(target_id))
                 return existing_target, db_url
             except SQLAlchemyError as e:
+                logger.error(
+                    "update_target_db_error",
+                    target_id=str(target_id),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
+                )
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
-                if "not found" in str(e).lower():
-                    raise
-                raise Exception(str(e))
+                if "not found" not in str(e).lower():
+                    logger.error(
+                        "update_target_error",
+                        target_id=str(target_id),
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        exc_info=True
+                    )
+                raise
+
+    async def _get_target_with_url(self, target_id: UUID):
+        async with get_session() as session:
+            result = await session.execute(
+                select(TargetModel, URLModel)
+                .where(TargetModel.id == target_id)
+                .join(URLModel, TargetModel.url_id == URLModel.id)
+            )
+            return result.first()
+
+    async def _delete_target_record(self, target: TargetModel):
+        async with get_session() as session:
+            await session.delete(target)
+            await session.commit()
 
     async def delete_target(self, target_id: UUID):
-        async with get_session() as session:
-            try:
-                result = await session.execute(
-                    select(TargetModel, URLModel)
-                    .where(TargetModel.id == target_id)
-                    .join(URLModel, TargetModel.url_id == URLModel.id)
+        logger.info("delete_target_started", target_id=str(target_id))
+        try:
+            row, _ = await asyncio.gather(
+                self._get_target_with_url(target_id),
+                self.schedule_repository.delete_schedules_by_target_id(
+                    target_id)
+            )
+
+            if not row:
+                logger.warning("delete_target_not_found", target_id=str(target_id))
+                raise Exception(f"Target with id {target_id} not found")
+
+            target, url = row
+
+            await self._delete_target_record(target)
+
+            logger.info("delete_target_success", target_id=str(target_id))
+            return target, url
+        except SQLAlchemyError as e:
+            logger.error(
+                "delete_target_db_error",
+                target_id=str(target_id),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True
+            )
+            raise Exception(f"Database error occurred: {str(e)}")
+        except Exception as e:
+            if "not found" not in str(e).lower():
+                logger.error(
+                    "delete_target_error",
+                    target_id=str(target_id),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=True
                 )
-                row = result.first()
-                if not row:
-                    raise Exception(f"Target with id {target_id} not found")
-
-                target, url = row
-                url_id = target.url_id
-
-                await self.schedule_repository.delete_schedules_by_target_id(target_id)
-
-                await session.delete(target)
-                await session.commit()
-
-                if url_id:
-                    await self.url_repository.delete_url(url_id)
-
-                return target, url
-            except SQLAlchemyError as e:
-                raise Exception(f"Database error occurred: {str(e)}")
-            except Exception as e:
-                if "not found" in str(e).lower():
-                    raise
-                raise Exception(str(e))
+            raise

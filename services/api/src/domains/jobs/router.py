@@ -1,10 +1,11 @@
+from datetime import datetime
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
-
 from domains.jobs.schemas import JobResponse
 from domains.jobs.service import JobService
+from enums.job_status import JobStatus
+from fastapi import APIRouter, HTTPException, Query, status
 from models.response import HTTPResponse
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -18,12 +19,41 @@ service = JobService()
     tags=["get all jobs"],
     status_code=status.HTTP_200_OK,
 )
-async def get_all_jobs(schedule_id: UUID | None = Query(None)):
+async def get_all_jobs(
+    schedule_id: UUID | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
+    start_time: str | None = Query(None),
+    end_time: str | None = Query(None),
+):
     try:
+        status_enum = None
+        if status_filter:
+            try:
+                status_enum = JobStatus(status_filter.lower())
+            except ValueError:
+                pass
+
+        start_dt = None
+        end_dt = None
+        if start_time:
+            try:
+                start_dt = datetime.fromisoformat(
+                    start_time.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        if end_time:
+            try:
+                end_dt = datetime.fromisoformat(
+                    end_time.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
         if schedule_id:
-            job_pydantics = await service.get_jobs_by_schedule_id(schedule_id)
+            job_pydantics = await service.get_jobs_by_schedule_id(
+                schedule_id, status_enum, start_dt, end_dt
+            )
         else:
-            job_pydantics = await service.get_all_jobs()
+            job_pydantics = await service.get_all_jobs(status_enum, start_dt, end_dt)
         job_responses = [j.to_response() for j in job_pydantics]
         return HTTPResponse(
             success=True,

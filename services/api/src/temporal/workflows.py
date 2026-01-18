@@ -30,9 +30,18 @@ class IntervalScheduleWorkflow:
 
             request_result = await workflow.execute_activity(
                 "execute_http_request",
-                args=(url, target["method"],
-                      target["headers"], target["body"]),
-                start_to_close_timeout=timedelta(seconds=60),
+                args=(
+                    url,
+                    target["method"],
+                    target["headers"],
+                    target["body"],
+                    target.get("timeout_seconds", 30),
+                    target.get("retry_count", 0),
+                    target.get("retry_delay_seconds", 1),
+                    target.get("follow_redirects", True),
+                ),
+                start_to_close_timeout=timedelta(seconds=target.get(
+                    "timeout_seconds", 30) * (target.get("retry_count", 0) + 1) + 60),
             )
 
             await workflow.execute_activity(
@@ -91,9 +100,18 @@ class WindowScheduleWorkflow:
 
             request_result = await workflow.execute_activity(
                 "execute_http_request",
-                args=(current_url, current_target["method"],
-                      current_target["headers"], current_target["body"]),
-                start_to_close_timeout=timedelta(seconds=60),
+                args=(
+                    current_url,
+                    current_target["method"],
+                    current_target["headers"],
+                    current_target["body"],
+                    current_target.get("timeout_seconds", 30),
+                    current_target.get("retry_count", 0),
+                    current_target.get("retry_delay_seconds", 1),
+                    current_target.get("follow_redirects", True),
+                ),
+                start_to_close_timeout=timedelta(seconds=current_target.get(
+                    "timeout_seconds", 30) * (current_target.get("retry_count", 0) + 1) + 60),
             )
 
             await workflow.execute_activity(
