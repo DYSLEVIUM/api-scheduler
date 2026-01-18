@@ -55,6 +55,7 @@ class JobRepository:
         start_time=None,
         end_time=None,
     ):
+        logger.debug("get_jobs_by_schedule_started", schedule_id=str(schedule_id), status_filter=status_filter)
         async with get_session() as session:
             try:
                 query = select(JobModel).where(
@@ -72,10 +73,14 @@ class JobRepository:
                 query = query.order_by(JobModel.started_at.desc())
 
                 result = await session.execute(query)
-                return result.scalars().all()
+                jobs = result.scalars().all()
+                logger.info("get_jobs_by_schedule_success", schedule_id=str(schedule_id), count=len(jobs))
+                return jobs
             except SQLAlchemyError as e:
+                logger.error("get_jobs_by_schedule_db_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
+                logger.error("get_jobs_by_schedule_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(str(e))
 
     async def get_all_jobs(self, status_filter=None, start_time=None, end_time=None):
@@ -107,6 +112,7 @@ class JobRepository:
                 raise Exception(str(e))
 
     async def delete_jobs_by_schedule_id(self, schedule_id: UUID):
+        logger.info("delete_jobs_by_schedule_started", schedule_id=str(schedule_id))
         async with get_session() as session:
             try:
                 result = await session.execute(
@@ -116,8 +122,11 @@ class JobRepository:
                 )
                 deleted_count = len(result.all())
                 await session.commit()
+                logger.info("delete_jobs_by_schedule_success", schedule_id=str(schedule_id), deleted_count=deleted_count)
                 return deleted_count
             except SQLAlchemyError as e:
+                logger.error("delete_jobs_by_schedule_db_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(f"Database error occurred: {str(e)}")
             except Exception as e:
+                logger.error("delete_jobs_by_schedule_error", schedule_id=str(schedule_id), error=str(e), error_type=type(e).__name__, exc_info=True)
                 raise Exception(str(e))

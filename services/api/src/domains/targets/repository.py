@@ -1,6 +1,7 @@
 import asyncio
 from uuid import UUID
 
+from core.logging import get_logger
 from db.database import get_session
 from db.models.target import Target as TargetModel
 from db.models.url import URL as URLModel
@@ -8,7 +9,6 @@ from domains.schedules.repository import ScheduleRepository
 from models.target import Target as TargetPydantic
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
-from core.logging import get_logger
 
 logger = get_logger()
 
@@ -27,9 +27,11 @@ class TargetRepository:
                 )
                 row = result.first()
                 if not row:
-                    logger.warning("target_not_found", target_id=str(target_id))
+                    logger.warning("target_not_found",
+                                   target_id=str(target_id))
                     raise Exception(f"Target with id {target_id} not found")
-                logger.info("get_target_by_id_success", target_id=str(target_id))
+                logger.info("get_target_by_id_success",
+                            target_id=str(target_id))
                 return row
             except SQLAlchemyError as e:
                 logger.error(
@@ -52,12 +54,14 @@ class TargetRepository:
                 raise
 
     async def create_target(self, target: TargetPydantic):
-        logger.info("create_target_started", url=target.url, method=target.method)
+        logger.info("create_target_started",
+                    url=target.url, method=target.method)
         async with get_session() as session:
             try:
                 parsed_url = target.get_url_parse_result()
                 db_url = URLModel(**parsed_url._asdict())
-                logger.debug("creating_url", scheme=db_url.scheme, netloc=db_url.netloc, path=db_url.path)
+                logger.debug("creating_url", scheme=db_url.scheme,
+                             netloc=db_url.netloc, path=db_url.path)
                 session.add(db_url)
                 await session.flush()
                 logger.debug("url_created", url_id=str(db_url.id))
@@ -66,7 +70,8 @@ class TargetRepository:
                 db_target.url_id = db_url.id
 
                 if db_target.headers is None:
-                    logger.warning("target_headers_none", setting_empty_dict=True)
+                    logger.warning("target_headers_none",
+                                   setting_empty_dict=True)
                     db_target.headers = {}
 
                 session.add(db_target)
@@ -74,7 +79,8 @@ class TargetRepository:
                 await session.refresh(db_target)
                 await session.refresh(db_url)
 
-                logger.info("create_target_success", target_id=str(db_target.id), url_id=str(db_url.id))
+                logger.info("create_target_success", target_id=str(
+                    db_target.id), url_id=str(db_url.id))
                 return db_target, db_url
             except SQLAlchemyError as e:
                 logger.error(
@@ -123,7 +129,8 @@ class TargetRepository:
                 raise Exception(str(e))
 
     async def update_target(self, target_id: UUID, target: TargetPydantic):
-        logger.info("update_target_started", target_id=str(target_id), url=target.url)
+        logger.info("update_target_started",
+                    target_id=str(target_id), url=target.url)
         async with get_session() as session:
             try:
                 result = await session.execute(
@@ -133,7 +140,8 @@ class TargetRepository:
                 )
                 row = result.first()
                 if not row:
-                    logger.warning("update_target_not_found", target_id=str(target_id))
+                    logger.warning("update_target_not_found",
+                                   target_id=str(target_id))
                     raise Exception(f"Target with id {target_id} not found")
 
                 existing_target, existing_url = row
@@ -142,7 +150,8 @@ class TargetRepository:
                 db_url = URLModel(**parsed_url._asdict())
                 session.add(db_url)
                 await session.flush()
-                logger.debug("update_target_new_url_created", url_id=str(db_url.id))
+                logger.debug("update_target_new_url_created",
+                             url_id=str(db_url.id))
 
                 db_target = target.to_db_model()
                 for key, value in db_target.model_dump(exclude={"id", "url_id", "created_at", "updated_at"}).items():
@@ -177,55 +186,49 @@ class TargetRepository:
                     )
                 raise
 
-    async def _get_target_with_url(self, target_id: UUID):
-        async with get_session() as session:
-            result = await session.execute(
-                select(TargetModel, URLModel)
-                .where(TargetModel.id == target_id)
-                .join(URLModel, TargetModel.url_id == URLModel.id)
-            )
-            return result.first()
-
-    async def _delete_target_record(self, target: TargetModel):
-        async with get_session() as session:
-            await session.delete(target)
-            await session.commit()
-
     async def delete_target(self, target_id: UUID):
         logger.info("delete_target_started", target_id=str(target_id))
-        try:
-            row, _ = await asyncio.gather(
-                self._get_target_with_url(target_id),
-                self.schedule_repository.delete_schedules_by_target_id(
-                    target_id)
-            )
+        async with get_session() as session:
+            try:
+                result = await session.execute(
+                    select(TargetModel, URLModel)
+                    .where(TargetModel.id == target_id)
+                    .join(URLModel, TargetModel.url_id == URLModel.id)
+                )
+                row = result.first()
 
-            if not row:
-                logger.warning("delete_target_not_found", target_id=str(target_id))
-                raise Exception(f"Target with id {target_id} not found")
+                if not row:
+                    logger.warning("delete_target_not_found",
+                                   target_id=str(target_id))
+                    raise Exception(f"Target with id {target_id} not found")
 
-            target, url = row
+                target, url = row
 
-            await self._delete_target_record(target)
+                await self.schedule_repository.delete_schedules_by_target_id(target_id)
 
-            logger.info("delete_target_success", target_id=str(target_id))
-            return target, url
-        except SQLAlchemyError as e:
-            logger.error(
-                "delete_target_db_error",
-                target_id=str(target_id),
-                error=str(e),
-                error_type=type(e).__name__,
-                exc_info=True
-            )
-            raise Exception(f"Database error occurred: {str(e)}")
-        except Exception as e:
-            if "not found" not in str(e).lower():
+                logger.debug("deleting_target_record",
+                             target_id=str(target_id))
+                await session.delete(target)
+                await session.commit()
+
+                logger.info("delete_target_success", target_id=str(target_id))
+                return target, url
+            except SQLAlchemyError as e:
                 logger.error(
-                    "delete_target_error",
+                    "delete_target_db_error",
                     target_id=str(target_id),
                     error=str(e),
                     error_type=type(e).__name__,
                     exc_info=True
                 )
-            raise
+                raise Exception(f"Database error occurred: {str(e)}")
+            except Exception as e:
+                if "not found" not in str(e).lower():
+                    logger.error(
+                        "delete_target_error",
+                        target_id=str(target_id),
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        exc_info=True
+                    )
+                raise

@@ -1,11 +1,14 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
 from core.config import settings
+from core.db_monitor import monitor_db_pool
 from core.logging import setup_logging
 from core.otel import setup_opentelemetry
+from db.database import engine
 from domains.health.router import router as health_router
 from domains.runs.router import router as runs_router
 from domains.schedules.router import router as schedules_router
@@ -34,10 +37,17 @@ async def lifespan(app: FastAPI):
         environment="development" if settings.dev else "production",
     )
 
+    monitor_task = asyncio.create_task(monitor_db_pool(engine, interval_seconds=30))
+
     async with temporal_worker_lifespan():
         logger.info("application_ready")
         yield
         logger.info("application_shutting_down")
+        monitor_task.cancel()
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app():

@@ -26,16 +26,30 @@ scrape_configs:
         target_label: 'service'
       - source_labels: ['__meta_docker_container_label_service']
         target_label: 'application'
+        action: replace
     pipeline_stages:
       - json:
           expressions:
             level: level
+            log_level: log_level
             timestamp: timestamp
-            message: event
+            event: event
+            message: message
+            duration_ms: duration_ms
+            function: function
+            operation: operation
+            workflow_id: workflow_id
+            activity: activity
+            schedule_id: schedule_id
+            query: query
       - labels:
           level:
+          log_level:
+          function:
+          operation:
+          activity:
       - timestamp:
           source: timestamp
           format: RFC3339Nano
       - output:
-          source: message
+          source: event

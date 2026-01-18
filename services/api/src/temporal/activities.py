@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
+from core.logging import get_logger
 from db.database import get_session
 from db.models.job import Job as JobModel
 from db.models.schedule import IntervalSchedule, WindowSchedule
@@ -13,63 +14,89 @@ from enums.job_status import JobStatus
 from models.job import Job as JobPydantic
 from temporalio import activity
 
+logger = get_logger()
+
 
 @activity.defn
 async def get_schedule_and_target(schedule_id: UUID) -> dict:
+    logger.info("activity_get_schedule_and_target_started", schedule_id=str(schedule_id))
+    
     async with get_session() as session:
         from sqlmodel import select
 
-        interval_result = await session.execute(
-            select(IntervalSchedule).where(IntervalSchedule.id == schedule_id)
-        )
-        interval_schedule = interval_result.scalar_one_or_none()
+        try:
+            interval_result = await session.execute(
+                select(IntervalSchedule).where(IntervalSchedule.id == schedule_id)
+            )
+            interval_schedule = interval_result.scalar_one_or_none()
 
-        window_result = await session.execute(
-            select(WindowSchedule).where(WindowSchedule.id == schedule_id)
-        )
-        window_schedule = window_result.scalar_one_or_none()
+            window_result = await session.execute(
+                select(WindowSchedule).where(WindowSchedule.id == schedule_id)
+            )
+            window_schedule = window_result.scalar_one_or_none()
 
-        schedule = interval_schedule or window_schedule
-        if not schedule:
-            return {"deleted": True}
+            schedule = interval_schedule or window_schedule
+            if not schedule:
+                logger.warning("activity_schedule_deleted", schedule_id=str(schedule_id))
+                return {"deleted": True}
 
-        if schedule.paused:
-            return {"paused": True}
+            if schedule.paused:
+                logger.info("activity_schedule_paused", schedule_id=str(schedule_id))
+                return {"paused": True}
 
-        target_result = await session.execute(
-            select(Target).where(Target.id == schedule.target_id)
-        )
-        target = target_result.scalar_one_or_none()
-        if not target:
-            raise ValueError(f"Target {schedule.target_id} not found")
+            target_result = await session.execute(
+                select(Target).where(Target.id == schedule.target_id)
+            )
+            target = target_result.scalar_one_or_none()
+            if not target:
+                logger.error("activity_target_not_found", schedule_id=str(schedule_id), target_id=str(schedule.target_id))
+                raise ValueError(f"Target {schedule.target_id} not found")
 
-        url_result = await session.execute(
-            select(URL).where(URL.id == target.url_id)
-        )
-        url = url_result.scalar_one_or_none()
-        if not url:
-            raise ValueError(f"URL {target.url_id} not found")
+            url_result = await session.execute(
+                select(URL).where(URL.id == target.url_id)
+            )
+            url = url_result.scalar_one_or_none()
+            if not url:
+                logger.error("activity_url_not_found", schedule_id=str(schedule_id), url_id=str(target.url_id))
+                raise ValueError(f"URL {target.url_id} not found")
 
-        schedule_dict = {
-            "interval_seconds": schedule.interval_seconds,
-        }
-        if hasattr(schedule, "duration_seconds"):
-            schedule_dict["duration_seconds"] = schedule.duration_seconds
+            schedule_dict = {
+                "interval_seconds": schedule.interval_seconds,
+            }
+            if hasattr(schedule, "duration_seconds"):
+                schedule_dict["duration_seconds"] = schedule.duration_seconds
 
-        return {
-            "paused": False,
-            "schedule": schedule_dict,
-            "target": {
-                "method": target.method.value,
-                "headers": target.headers,
-                "body": target.body,
-                "timeout_seconds": target.timeout_seconds,
-                "retry_count": target.retry_count,
-                "retry_delay_seconds": target.retry_delay_seconds,
-                "follow_redirects": target.follow_redirects,
-            },
-            "url": url.get_url_string(),
-        }
+            logger.info(
+                "activity_get_schedule_and_target_success",
+                schedule_id=str(schedule_id),
+                target_id=str(schedule.target_id),
+                url=url.get_url_string(),
+                method=target.method.value
+            )
+
+            return {
+                "paused": False,
+                "schedule": schedule_dict,
+                "target": {
+                    "method": target.method.value,
+                    "headers": target.headers,
+                    "body": target.body,
+                    "timeout_seconds": target.timeout_seconds,
+                    "retry_count": target.retry_count,
+                    "retry_delay_seconds": target.retry_delay_seconds,
+                    "follow_redirects": target.follow_redirects,
+                },
+                "url": url.get_url_string(),
+            }
+        except Exception as e:
+            logger.error(
+                "activity_get_schedule_and_target_error",
+                schedule_id=str(schedule_id),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True
+            )
+            raise
 
 
 @activity.defn
@@ -84,6 +111,15 @@ async def execute_http_request(
     follow_redirects: bool = True,
 ) -> dict:
     import asyncio
+
+    logger.info(
+        "activity_http_request_started",
+        url=url,
+        method=method,
+        timeout_seconds=timeout_seconds,
+        retry_count=retry_count,
+        follow_redirects=follow_redirects
+    )
 
     start_time = datetime.now(UTC)
     status = JobStatus.SUCCESS
@@ -126,6 +162,14 @@ async def execute_http_request(
                         kwargs["json"] = body
 
                 response = await http_method(url, **kwargs)
+                
+                logger.debug(
+                    "http_request_completed",
+                    url=url,
+                    method=method,
+                    attempt=attempt + 1,
+                    status_code=response.status_code
+                )
 
                 # Track redirect history from response
                 if hasattr(response, 'history') and response.history:
@@ -191,6 +235,15 @@ async def execute_http_request(
                 attempt_end - attempt_start).total_seconds() * 1000
             attempt_status = JobStatus.TIMEOUT
             attempt_error = f"Request timed out after {timeout_seconds} seconds"
+            
+            logger.warning(
+                "http_request_timeout",
+                url=url,
+                method=method,
+                attempt=attempt + 1,
+                timeout_seconds=timeout_seconds,
+                latency_ms=attempt_latency
+            )
 
             attempts.append({
                 "attempt_number": attempt + 1,
@@ -231,6 +284,16 @@ async def execute_http_request(
             else:
                 attempt_status = JobStatus.CONNECTION_ERROR
                 attempt_error = f"Connection error: {str(e)}"
+            
+            logger.warning(
+                "http_request_connection_error",
+                url=url,
+                method=method,
+                attempt=attempt + 1,
+                error_type=attempt_status.value,
+                error=attempt_error,
+                latency_ms=attempt_latency
+            )
 
             attempts.append({
                 "attempt_number": attempt + 1,
@@ -259,6 +322,17 @@ async def execute_http_request(
                 attempt_end - attempt_start).total_seconds() * 1000
             attempt_status = JobStatus.ERROR
             attempt_error = str(e)
+            
+            logger.error(
+                "http_request_error",
+                url=url,
+                method=method,
+                attempt=attempt + 1,
+                error=str(e),
+                error_type=type(e).__name__,
+                latency_ms=attempt_latency,
+                exc_info=True
+            )
 
             attempts.append({
                 "attempt_number": attempt + 1,
@@ -282,6 +356,17 @@ async def execute_http_request(
 
     if last_exception and not error_message:
         error_message = str(last_exception)
+
+    logger.info(
+        "activity_http_request_completed",
+        url=url,
+        method=method,
+        status=status.value,
+        status_code=status_code,
+        latency_ms=latency_ms,
+        attempts=len(attempts),
+        redirected=bool(redirect_history)
+    )
 
     result = {
         "status": status.value,
@@ -316,6 +401,13 @@ async def create_job_record(
     request_result: dict,
 ) -> UUID:
     from db.models.attempt import Attempt
+
+    logger.info(
+        "activity_create_job_record_started",
+        schedule_id=str(schedule_id),
+        run_number=run_number,
+        status=request_result.get("status")
+    )
 
     async with get_session() as session:
         started_at = request_result["started_at"]
@@ -391,4 +483,13 @@ async def create_job_record(
             session.add(attempt)
 
         await session.commit()
+        
+        logger.info(
+            "activity_create_job_record_success",
+            schedule_id=str(schedule_id),
+            run_number=run_number,
+            job_id=str(job.id),
+            attempts_count=len(attempts)
+        )
+        
         return job.id

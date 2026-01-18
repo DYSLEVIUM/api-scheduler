@@ -5,16 +5,31 @@ import sys
 import structlog
 
 
+class ConsoleOnlyRenderer:
+    """Renders readable output to console, preserves dict for JSON"""
+
+    def __call__(self, logger, method_name, event_dict):
+        timestamp = event_dict.get('timestamp', '')
+        level = event_dict.get('level', 'info').upper()
+        event = event_dict.get('event', '')
+
+        context_parts = []
+        for key, value in event_dict.items():
+            if key not in ['timestamp', 'level', 'event']:
+                context_parts.append(f"{key}={value}")
+
+        context_str = " ".join(context_parts) if context_parts else ""
+        console_msg = f"{timestamp} [{level:5}] {event:35} {context_str}"
+
+        print(console_msg, file=sys.stdout, flush=True)
+
+        return event_dict
+
+
 def setup_logging(
     log_level: str = "INFO",
 ) -> structlog.BoundLogger:
     from core.config import settings
-
-    handlers = []
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, log_level.upper()))
-    handlers.append(console_handler)
 
     if settings.loki_url:
         try:
@@ -30,35 +45,38 @@ def setup_logging(
                 version="1",
             )
             loki_handler.setLevel(getattr(logging, log_level.upper()))
-            handlers.append(loki_handler)
+
+            logging.basicConfig(
+                format="%(message)s",
+                level=getattr(logging, log_level.upper()),
+                handlers=[loki_handler],
+                force=True,
+            )
         except Exception as e:
             print(f"Warning: Failed to initialize Loki handler: {e}")
-
-    logging.basicConfig(
-        format="%(message)s",
-        level=getattr(logging, log_level.upper()),
-        handlers=handlers,
-        force=True,
-    )
-
-    if settings.dev:
-        processors = [
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.dev.set_exc_info,
-            structlog.dev.ConsoleRenderer(),
-        ]
+            logging.basicConfig(
+                format="%(message)s",
+                level=getattr(logging, log_level.upper()),
+                handlers=[logging.StreamHandler(sys.stdout)],
+                force=True,
+            )
     else:
-        processors = [
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(),
-        ]
+        logging.basicConfig(
+            format="%(message)s",
+            level=getattr(logging, log_level.upper()),
+            handlers=[logging.StreamHandler(sys.stdout)],
+            force=True,
+        )
+
+    processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", key="timestamp"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        ConsoleOnlyRenderer(),
+        structlog.processors.JSONRenderer(sort_keys=False),
+    ]
 
     structlog.configure(
         processors=processors,

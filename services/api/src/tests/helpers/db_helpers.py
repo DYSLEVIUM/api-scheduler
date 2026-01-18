@@ -60,11 +60,13 @@ async def create_test_schedule(
     target_id: UUID,
     interval_seconds: int = 60,
     paused: bool = False,
+    name: str = "Test Schedule",
 ) -> IntervalScheduleModel:
     schedule = IntervalScheduleModel(
         target_id=target_id,
         interval_seconds=interval_seconds,
         paused=paused,
+        name=name,
     )
     session.add(schedule)
     await session.commit()

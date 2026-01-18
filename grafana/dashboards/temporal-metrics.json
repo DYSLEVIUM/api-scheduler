@@ -643,6 +643,7 @@
       "type": "timeseries"
     }
   ],
+  "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
   "tags": ["temporal", "workflows", "activities"],
@@ -650,7 +651,7 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},

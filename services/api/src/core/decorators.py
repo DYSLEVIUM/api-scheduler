@@ -3,10 +3,9 @@ import inspect
 import time
 from typing import Any, Callable, TypeVar
 
-from opentelemetry import trace
-
 from core.logging import get_logger
 from core.otel import get_tracer
+from opentelemetry import trace
 
 logger = get_logger()
 tracer = get_tracer()
@@ -44,26 +43,28 @@ def log(
 
             try:
                 logger.debug(
-                    f"Starting {op_name}",
+                    f"function_started",
                     **log_context
                 )
 
                 result = await func(*args, **kwargs)
 
                 duration = time.perf_counter() - start_time
-                span.set_attribute("duration", duration)
+                duration_ms = round(duration * 1000, 2)
+                span.set_attribute("duration_ms", duration_ms)
                 span.set_attribute("file", log_context["file"])
                 span.set_attribute("line", func_line)
                 span.set_status(trace.Status(trace.StatusCode.OK))
 
-                log_context["duration"] = duration
+                log_context["duration_ms"] = duration_ms
+                log_context["duration_seconds"] = round(duration, 3)
                 log_context["success"] = True
 
                 if log_result:
                     log_context["result"] = str(result)[:200]
 
                 logger.info(
-                    f"Completed {op_name}",
+                    f"function_completed",
                     **log_context
                 )
 
@@ -111,26 +112,28 @@ def log(
 
             try:
                 logger.debug(
-                    f"Starting {op_name}",
+                    f"function_started",
                     **log_context
                 )
 
                 result = func(*args, **kwargs)
 
                 duration = time.perf_counter() - start_time
-                span.set_attribute("duration", duration)
+                duration_ms = round(duration * 1000, 2)
+                span.set_attribute("duration_ms", duration_ms)
                 span.set_attribute("file", log_context["file"])
                 span.set_attribute("line", func_line)
                 span.set_status(trace.Status(trace.StatusCode.OK))
 
-                log_context["duration"] = duration
+                log_context["duration_ms"] = duration_ms
+                log_context["duration_seconds"] = round(duration, 3)
                 log_context["success"] = True
 
                 if log_result:
                     log_context["result"] = str(result)[:200]
 
                 logger.info(
-                    f"Completed {op_name}",
+                    f"function_completed",
                     **log_context
                 )
 
@@ -138,19 +141,21 @@ def log(
 
             except Exception as e:
                 duration = time.perf_counter() - start_time
+                duration_ms = round(duration * 1000, 2)
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 span.record_exception(e)
-                span.set_attribute("duration", duration)
+                span.set_attribute("duration_ms", duration_ms)
                 span.set_attribute("file", log_context["file"])
                 span.set_attribute("line", func_line)
 
-                log_context["duration"] = duration
+                log_context["duration_ms"] = duration_ms
+                log_context["duration_seconds"] = round(duration, 3)
                 log_context["error"] = str(e)
                 log_context["error_type"] = type(e).__name__
                 log_context["success"] = False
 
                 logger.error(
-                    f"Failed {op_name}",
+                    f"function_failed",
                     **log_context
                 )
                 raise
